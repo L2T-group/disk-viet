@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Trash goes through Finder (Apple Events) so "Put Back" works; without this macOS denies it (-1743). -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>DiskViet cần điều khiển Finder để đưa file vào Thùng rác (giữ được "Đưa trở lại"). DiskViet needs to control Finder to move files to the Trash (so "Put Back" works).</string>
+</dict>
+</plist>

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2021",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noUncheckedIndexedAccess": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "outDir": "node_modules/.tmp/tsc-test",
+    "tsBuildInfoFile": "node_modules/.tmp/tsc-test/tsconfig.test.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"]
+}

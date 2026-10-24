@@ -1,0 +1,34 @@
+[package]
+name = "diskviet"
+version = "0.1.0"
+description = "DiskViet — disk cleaner with a safety-colored treemap"
+license = "PolyForm-Noncommercial-1.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "dv_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+libc = "0.2"
+rayon = "1"
+trash = { version = "5.2.9", default-features = false }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2

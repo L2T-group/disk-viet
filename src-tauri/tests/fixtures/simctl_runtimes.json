@@ -1,0 +1,43 @@
+{
+  "C62A6A94-CFD4-4C23-BED4-4001207F1CFD" : {
+    "build" : "23C54",
+    "deletable" : true,
+    "identifier" : "C62A6A94-CFD4-4C23-BED4-4001207F1CFD",
+    "kind" : "Patchable Cryptex Disk Image",
+    "lastUsedAt" : "2026-10-18T15:03:15Z",
+    "mountPath" : "\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23C54",
+    "parentMountPath" : "\/System\/Library\/AssetsV2\/com_apple_MobileAsset_iOSSimulatorRuntime\/e4478b4b9014ff28fe3c265daca488f55a284f4c.asset\/AssetData",
+    "path" : "\/System\/Library\/AssetsV2\/com_apple_MobileAsset_iOSSimulatorRuntime\/e4478b4b9014ff28fe3c265daca488f55a284f4c.asset\/AssetData\/Restore\/043-87504-067.dmg",
+    "platformIdentifier" : "com.apple.platform.iphonesimulator",
+    "runtimeBundlePath" : "\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_23C54\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 26.2.simruntime",
+    "runtimeIdentifier" : "com.apple.CoreSimulator.SimRuntime.iOS-26-2",
+    "signatureState" : "Verified",
+    "sizeBytes" : 8381044573,
+    "state" : "Ready",
+    "supportedArchitectures" : [
+      "arm64"
+    ],
+    "version" : "26.2"
+  },
+  "F6E8CD05-A388-4271-B1DE-5C44A607F27B" : {
+    "build" : "22G86",
+    "deletable" : true,
+    "identifier" : "F6E8CD05-A388-4271-B1DE-5C44A607F27B",
+    "kind" : "Cryptex Disk Image",
+    "mountPath" : "\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_22G86",
+    "parentIdentifier" : "F9648B03-F412-4322-B07A-93AF631CFC5A",
+    "parentImagePath" : "\/System\/Library\/AssetsV2\/com_apple_MobileAsset_iOSSimulatorRuntime\/7fd8477b73d7b67a321fff7d87723eed3c628424.asset\/AssetData\/043-18670-100.dmg",
+    "parentMountPath" : "\/Library\/Developer\/CoreSimulator\/Cryptex\/Images\/bundle\/SimRuntimeBundle-F9648B03-F412-4322-B07A-93AF631CFC5A",
+    "path" : "\/Library\/Developer\/CoreSimulator\/Cryptex\/Images\/bundle\/SimRuntimeBundle-F9648B03-F412-4322-B07A-93AF631CFC5A\/Restore\/043-19278-100.dmg",
+    "platformIdentifier" : "com.apple.platform.iphonesimulator",
+    "runtimeBundlePath" : "\/Library\/Developer\/CoreSimulator\/Volumes\/iOS_22G86\/Library\/Developer\/CoreSimulator\/Profiles\/Runtimes\/iOS 18.6.simruntime",
+    "runtimeIdentifier" : "com.apple.CoreSimulator.SimRuntime.iOS-18-6",
+    "signatureState" : "Verified",
+    "state" : "Ready",
+    "supportedArchitectures" : [
+      "x86_64",
+      "arm64"
+    ],
+    "version" : "18.6"
+  }
+}

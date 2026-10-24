@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#262a33"/>
+      <stop offset="1" stop-color="#14161b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <!-- macOS icon grid: 824×824 body with ~185 px corner radius, centred on a 1024 canvas -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#shadow)"/>
+  <!-- A small treemap: area ~ size, colour = safety level (safe / consider / important / system) -->
+  <g transform="translate(196 196)" stroke-width="10" stroke-linejoin="round">
+    <rect x="0"   y="0"   width="380" height="632" rx="40" fill="#3fb36b" stroke="#6fd896"/>
+    <rect x="404" y="0"   width="228" height="300" rx="40" fill="#e7b432" stroke="#f6d47a"/>
+    <rect x="404" y="324" width="228" height="176" rx="36" fill="#e06666" stroke="#f29b9b"/>
+    <rect x="404" y="524" width="104" height="108" rx="28" fill="#8a909c" stroke="#b5bac4"/>
+    <rect x="532" y="524" width="100" height="108" rx="28" fill="#4b505b" stroke="#7a808c"/>
+  </g>
+</svg>

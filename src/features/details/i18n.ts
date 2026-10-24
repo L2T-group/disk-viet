@@ -1,0 +1,28 @@
+export const dict = {
+  vi: {
+    'details.label': 'Chi tiết',
+    'details.hint': 'Bấm vào một ô để xem chi tiết. ⌘-click để chọn nhiều, bấm đúp để mở thư mục.',
+    'details.why': 'Vì sao lớn',
+    'details.effect': 'Xoá thì sao',
+    'details.remainder': 'Phần còn lại của thư mục sau khi tách các vùng đã biết.',
+    'details.admin': 'Cần mật khẩu quản trị để xoá.',
+    'details.tool': 'Dọn bằng {tool}.',
+    'details.toolMissing': 'Cần cài {tool} để dọn mục này.',
+    'details.reveal': 'Mở trong Finder',
+    'details.open': 'Mở thư mục',
+    'details.delete': 'Xoá…',
+  },
+  en: {
+    'details.label': 'Details',
+    'details.hint': 'Click a tile for details. ⌘-click to select several, double-click to open a folder.',
+    'details.why': 'Why it is big',
+    'details.effect': 'If you delete it',
+    'details.remainder': 'What is left of this folder after the known areas are split out.',
+    'details.admin': 'Needs an administrator password to delete.',
+    'details.tool': 'Cleaned with {tool}.',
+    'details.toolMissing': 'Install {tool} to clean this item.',
+    'details.reveal': 'Show in Finder',
+    'details.open': 'Open folder',
+    'details.delete': 'Delete…',
+  },
+};

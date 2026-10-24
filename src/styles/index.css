@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+}
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #16181d;
+  --panel: #f4f5f7;
+  --border: #d9dce1;
+  --muted: #646a75;
+  --accent: #2563eb;
+  --danger: #c62828;
+  /* Safety colors (spec §5); tile text is --tile-fg except on --system. */
+  --safe: #7fd19a;
+  --caution: #f3c95c;
+  --important: #f09595;
+  --system: #4b505b;
+  --unknown: #d3d6dc;
+  --tile-fg: #16181d;
+  /* Tile edges: the tile's own color pushed toward this (darker in light, lighter in dark). */
+  --edge-mix: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181d;
+    --fg: #e6e8ec;
+    --panel: #1d2026;
+    --border: #2e323a;
+    --muted: #9aa0ab;
+    --accent: #60a5fa;
+    --danger: #ef5350;
+    --safe: #2a6e43;
+    --caution: #85620f;
+    --important: #9e3d3d;
+    --system: #353941;
+    --unknown: #5d626c;
+    --tile-fg: #f2f3f5;
+    --edge-mix: #ffffff;
+  }
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* A layer, so utilities on a tile (e.g. the dashed "unreadable" border) still win. */
+@layer components {
+  .tile {
+    --fill: var(--unknown);
+    background: var(--fill);
+    color: var(--tile-fg);
+    border: 1px solid color-mix(in srgb, var(--fill), var(--edge-mix) 35%);
+  }
+  .tile[data-safety='safe'] {
+    --fill: var(--safe);
+  }
+  .tile[data-safety='caution'] {
+    --fill: var(--caution);
+  }
+  .tile[data-safety='important'] {
+    --fill: var(--important);
+  }
+  .tile[data-safety='system'] {
+    --fill: var(--system);
+    color: #f2f3f5;
+  }
+  .tile[data-kind='unexplained'] {
+    background: repeating-linear-gradient(135deg, var(--unknown) 0 8px, var(--panel) 8px 16px);
+  }
+}
