@@ -2,7 +2,7 @@
 //! volume or follows symlinks, and the running-process probe.
 use std::fs;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use trash::TrashContext;
 use trash::macos::{DeleteMethod, TrashContextExtMacos};
@@ -91,6 +91,47 @@ fn note(first: &mut Option<String>, e: impl ToString) {
     first.get_or_insert_with(|| e.to_string());
 }
 
+/// Every file some other process has open, as (command, path), from one `lsof` for the batch.
+/// No answer is an error, never "nothing open": callers refuse to delete then.
+/// shortcut: sees only the user's own processes (no root), enough for apps a user runs.
+pub fn open_files() -> Result<Vec<(String, PathBuf)>, String> {
+    // -b: never block on a stale network mount; +c 0: full command names.
+    // A Finder-launched app has no LANG; in the C locale lsof escapes non-ASCII names (`\xe1`),
+    // so Vietnamese paths would never match. Same env whatever launched us.
+    let out = Command::new("/usr/sbin/lsof")
+        .env_clear()
+        .env("LC_ALL", "en_US.UTF-8")
+        .args(["-nP", "-w", "-b", "+c", "0", "-F", "pcn"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .map_err(|_| "in_use_unknown".to_string())?;
+    // lsof exits 1 when some process could not be read; the rest of the list is still good.
+    if out.stdout.is_empty() {
+        return Err("in_use_unknown".into());
+    }
+    Ok(parse_lsof(
+        &String::from_utf8_lossy(&out.stdout),
+        std::process::id(),
+    ))
+}
+
+/// `-F pcn` output: `p<pid>`, `c<command>`, then `f<fd>`/`n<path>` per open file.
+/// shortcut: lsof prints a newline in a name as `\n`, so such paths never match (a missed
+/// block, never a wrong delete); switch to libproc if that matters.
+fn parse_lsof(out: &str, own_pid: u32) -> Vec<(String, PathBuf)> {
+    let (mut cmd, mut own, mut v) = ("", false, Vec::new());
+    for line in out.lines() {
+        match line.split_at_checked(1) {
+            Some(("p", pid)) => own = pid.parse() == Ok(own_pid),
+            Some(("c", c)) => cmd = c.trim_end(), // `+c 0` still cuts long names mid-word
+            Some(("n", n)) if !own && n.starts_with('/') => v.push((cmd.to_string(), n.into())),
+            _ => {}
+        }
+    }
+    v
+}
+
 /// `pgrep -x <name>`. Only exit code 1 ("no match") counts as not running: any failure to
 /// ask errs on the side of "running".
 pub fn is_running(name: &str) -> bool {
@@ -108,6 +149,41 @@ pub fn is_running(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_lsof_skips_own_process_and_non_paths() {
+        let out = "p1\ncCursor Helper\nfcwd\nn/Users/u\nf12\nn/Users/u/Library/Caches/x/db\n\
+                   f13\nn127.0.0.1:80\np42\ncDiskViet\nf3\nn/Users/u/Library/Caches/y\n";
+        assert_eq!(
+            parse_lsof(out, 42),
+            [
+                ("Cursor Helper".to_string(), PathBuf::from("/Users/u")),
+                (
+                    "Cursor Helper".to_string(),
+                    PathBuf::from("/Users/u/Library/Caches/x/db")
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn open_files_sees_a_file_held_open() {
+        // Non-ASCII on purpose: lsof escapes it unless the locale is UTF-8.
+        let p = std::env::temp_dir().join(format!("dv-mở tệp-{}", std::process::id()));
+        fs::write(&p, "x").unwrap();
+        let p = p.canonicalize().unwrap();
+        let mut child = Command::new("/usr/bin/tail")
+            .arg("-f")
+            .arg(&p)
+            .spawn()
+            .unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let open = open_files().unwrap();
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(open.iter().any(|(c, f)| c == "tail" && f == &p), "{p:?}");
+        let _ = fs::remove_file(&p);
+    }
     use std::os::unix::fs::symlink;
     use std::path::PathBuf;
 
@@ -122,7 +198,10 @@ mod tests {
     fn finder_denial_has_its_own_reason() {
         let denied = "osascript: Not authorized to send Apple events to Finder. (-1743)";
         assert_eq!(trash_reason(denied), "trash_denied");
-        assert_eq!(trash_reason("timeout (-1712)"), "trash_failed: timeout (-1712)");
+        assert_eq!(
+            trash_reason("timeout (-1712)"),
+            "trash_failed: timeout (-1712)"
+        );
     }
 
     #[test]

@@ -217,6 +217,14 @@ fn has_manifest(path: &Path) -> bool {
     manifests.iter().any(|m| dir.join(m).exists())
 }
 
+/// Could `pattern` match `item` or something inside it? True when `item` matches the
+/// pattern cut after any segment (`~/a/*.tg` for `~/a/*.tg/**/media`); a trailing `**`
+/// covers everything below.
+pub fn could_hold(pattern: &str, item: &Path, home: &Path) -> bool {
+    let segs: Vec<&str> = pattern.split('/').collect();
+    (1..=segs.len()).any(|k| matches(&segs[..k].join("/"), item, home))
+}
+
 fn git_rule() -> &'static Rule {
     RULES.iter().find(|r| r.id == "git_projects").unwrap()
 }

@@ -147,11 +147,7 @@ fn attached(tree: &Tree, id: NodeId) -> AppResult<&Node> {
 /// Children of each tile, sorted desc, to draw inside it. On the overview a remainder tile's
 /// children lose the rule tiles inside them (those are tiles of their own), so each list plus
 /// the tile's `small_bytes` still sums to the tile's displayed size.
-pub fn children_view(
-    tree: &Tree,
-    ids: &[NodeId],
-    overview: bool,
-) -> Vec<(NodeId, Vec<NodeView>)> {
+pub fn children_view(tree: &Tree, ids: &[NodeId], overview: bool) -> Vec<(NodeId, Vec<NodeView>)> {
     // Ids gone since the layout (deleted meanwhile) are skipped, not fatal for the batch.
     ids.iter()
         .filter_map(|&id| {
@@ -337,6 +333,7 @@ pub async fn delete_run(
             &home,
             &dir,
             &cleaner::files::is_running,
+            &cleaner::files::open_files,
             &cleaner::admin::run_elevated,
             &cleaner::tools::run_tool,
         )
@@ -519,7 +516,10 @@ mod tests {
         let v = children_view(&t, &[5, 1], false);
         assert_eq!(v.iter().map(|x| x.0).collect::<Vec<_>>(), [5, 1]);
         assert_eq!(v[0].1.iter().map(|c| c.id).collect::<Vec<_>>(), [6]);
-        assert_eq!(v[1].1.iter().map(|c| (c.id, c.size)).collect::<Vec<_>>(), [(2, 6)]);
+        assert_eq!(
+            v[1].1.iter().map(|c| (c.id, c.size)).collect::<Vec<_>>(),
+            [(2, 6)]
+        );
         assert!(!v[1].1[0].remainder);
     }
 
@@ -540,7 +540,9 @@ mod tests {
         let v = children_view(&t, &[1, 5, 3], true);
         let lib = &v[0].1;
         assert_eq!(
-            lib.iter().map(|c| (c.id, c.size, c.remainder)).collect::<Vec<_>>(),
+            lib.iter()
+                .map(|c| (c.id, c.size, c.remainder))
+                .collect::<Vec<_>>(),
             [(2, 3, true), (8, 2, false)] // Logs is its own overview tile
         );
         let sum = |i: usize| v[i].1.iter().map(|c| c.size).sum::<u64>();

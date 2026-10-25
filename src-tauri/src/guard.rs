@@ -1,7 +1,7 @@
 //! The single deletion gate (spec §5). Every delete, from any caller, goes through `check`
 //! (file deletes) or `check_tool` (tool cleaners). Independent of the UI.
 use crate::error::AppError;
-use crate::rules::{Cleaner, Rule, Safety, hit_path};
+use crate::rules::{Cleaner, RULES, Rule, Safety, could_hold, hit_path};
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -89,6 +89,8 @@ fn gate(path: &Path, home: &Path, tool: bool) -> Result<Checked, AppError> {
     let roots = [
         home.clone(),
         home.join("Library"),
+        // Holds every app's data at once; delete one app's folder instead.
+        home.join("Library/Application Support"),
         home.join("Documents"),
         home.join("Desktop"),
         home.join("Pictures"),
@@ -112,6 +114,14 @@ fn gate(path: &Path, home: &Path, tool: bool) -> Result<Checked, AppError> {
     }
     if safety == Safety::System {
         return Err(deny("system_safety"));
+    }
+    // A folder holding a System item (~/Library/Caches holds com.apple.*) would take it along.
+    let holds_system = RULES
+        .iter()
+        .filter(|r| r.safety == Safety::System)
+        .any(|r| r.patterns.iter().any(|p| could_hold(p, &path, &home)));
+    if holds_system {
+        return Err(deny("holds_system"));
     }
     Ok(Checked {
         path,
@@ -189,6 +199,9 @@ mod tests {
         let _ = fs::remove_dir_all(&p);
         for d in [
             "Library/Caches/Homebrew",
+            "Library/Application Support/SomeApp",
+            "Library/Group Containers/group.com.apple.notes",
+            "Library/Group Containers/group.com.other",
             "Documents",
             "Desktop",
             "Pictures",
@@ -236,6 +249,30 @@ mod tests {
         }
         let a = h.join("Documents/a.txt");
         assert_eq!(perm(&a, &h), format!("ok:{}", a.display()));
+        let app = h.join("Library/Application Support");
+        assert_eq!(perm(&app, &h), "forbidden_root");
+        assert_eq!(&perm(&app.join("SomeApp"), &h)[..3], "ok:");
+    }
+
+    #[test]
+    fn folder_holding_system_items_rejected() {
+        let h = tmp_home("holds");
+        // ~/Library/Caches may hold com.apple.*; Group Containers holds Apple's (Notes, iWork).
+        for p in [h.join("Library/Caches"), h.join("Library/Group Containers")] {
+            assert_eq!(perm(&p, &h), "holds_system", "{p:?}");
+        }
+        let notes = h.join("Library/Group Containers/group.com.apple.notes");
+        assert_eq!(perm(&notes, &h), "system_safety");
+        for p in [
+            h.join("Library/Application Support/SomeApp"),
+            h.join("Library/Group Containers/group.com.other"),
+        ] {
+            assert_eq!(&perm(&p, &h)[..3], "ok:", "{p:?}");
+        }
+        // /Library/Developer holds CommandLineTools (System).
+        if Path::new("/Library/Developer").exists() {
+            assert_eq!(perm(Path::new("/Library/Developer"), &h), "holds_system");
+        }
     }
 
     #[test]

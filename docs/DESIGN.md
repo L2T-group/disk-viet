@@ -142,6 +142,9 @@ Mỗi quy tắc gồm: `id`, mẫu đường dẫn, mức an toàn, có cần ad
 | pip / uv | `~/Library/Caches/pip`, `~/.cache/uv` | Gói Python đã tải | Như trên |
 | CocoaPods cache | `~/Library/Caches/CocoaPods` | Pod đã tải | Như trên |
 | Log | `~/Library/Logs/*` | Log ứng dụng | Không |
+| Cache ứng dụng (luật chung) | `~/Library/Caches/*`, `~/Library/Application Support/Caches` | Cache mọi app chưa có luật riêng | Tự tạo lại · nên thoát app |
+| Cache Electron (luật chung) | `~/Library/Application Support/*/{Cache,Code Cache,GPUCache,CachedData}` | Cache app Electron | Như trên |
+| Cache Chrome trong hồ sơ | `…/Google/Chrome/*/{Code Cache,GPUCache}`, `…/Service Worker/{CacheStorage,ScriptCache}` | Cache script trang web | Tự tạo lại · cần thoát Chrome |
 
 ### 🟡 Cân nhắc
 | Vùng | Đường dẫn / cách xoá | Vì sao lớn | Xoá thì |
@@ -161,6 +164,9 @@ Mỗi quy tắc gồm: `id`, mẫu đường dẫn, mức an toàn, có cần ad
 | Xcode Archives | `~/Library/Developer/Xcode/Archives` | Mỗi lần Archive giữ bản build + dSYM | Mất dSYM để giải mã crash của bản đã phát hành |
 | Thùng rác | `~/.Trash` (chỉ cho Xoá hẳn) | File đã xoá chưa dọn | Không khôi phục được nữa |
 | Zalo/Telegram dữ liệu chat | `~/Library/Application Support/ZaloData`, … | File/ảnh trong hội thoại | Mất file cũ trong chat |
+| Dữ liệu tạm Cursor / VS Code | `…/Cursor/{snapshots,WebStorage}`, `…/Code/WebStorage` | Checkpoint agent, webview | Mất checkpoint, đăng nhập lại |
+| Extension trình soạn thảo | `~/{.cursor,.vscode}/extensions` | Extension đã cài | Phải cài lại |
+| Dữ liệu trang web Chrome | `…/Google/Chrome/*/{File System,IndexedDB,Service Worker}` | Dữ liệu web lưu cục bộ | Bị đăng xuất |
 
 ### 🔴 Quan trọng (cho xoá, thêm bước xác nhận)
 | Vùng | Đường dẫn |
@@ -171,9 +177,11 @@ Mỗi quy tắc gồm: `id`, mẫu đường dẫn, mức an toàn, có cần ad
 | Mail, Tin nhắn | `~/Library/Mail`, `~/Library/Messages` |
 | Mã nguồn dự án | thư mục có `.git` (trừ `node_modules`/`target`/`build` bên trong) |
 | Cấu hình dev | `~/.gitconfig`, `~/.zshrc`, `~/.config` |
+| Hồ sơ Chrome | `~/Library/Application Support/Google/Chrome` |
+| Dữ liệu ứng dụng (luật chung) | `~/Library/{Application Support,Containers,Group Containers}/*` — luật cụ thể hơn luôn thắng |
 
 ### ⚫ Hệ thống (không cho xoá, chỉ hiển thị)
-`/System`, `/usr` (trừ `/usr/local`), `/bin`, `/sbin`, `/private/var/vm` (swap — do macOS quản lý), `/private/var/db`, ứng dụng trong `/Applications` (bản đầu chỉ hiển thị dung lượng; gỡ app là việc của Finder), `~/Library/Keychains`, `~/.ssh`, `~/.gnupg`, `~/Library/Preferences`, volume Preboot/Recovery/VM.
+`/System`, `/usr` (trừ `/usr/local`), `/bin`, `/sbin`, `/private/var/vm` (swap — do macOS quản lý), `/private/var/db`, ứng dụng trong `/Applications` (bản đầu chỉ hiển thị dung lượng; gỡ app là việc của Finder), `~/Library/Keychains`, `~/.ssh`, `~/.gnupg`, `~/Library/Preferences`, volume Preboot/Recovery/VM. Thêm: công cụ lập trình (`/opt/homebrew`, `/Library/Developer/CommandLineTools`), dữ liệu app của Apple (`~/Library/Containers/com.apple.*`, `~/Library/Group Containers/{group.com.apple.*,*.com.apple.*}`, `~/Library/Caches/com.apple.*` trừ `com.apple.dt.*` — cache Xcode, vẫn 🟢).
 
 ### Không đếm được
 Thư mục bị macOS chặn (Operation not permitted) hiện thành ô có viền nét đứt **"Không đọc được — cần Full Disk Access"** kèm nút mở System Settings đúng trang. Dung lượng "chưa giải thích" = dung lượng đã dùng của volume (`statfs`) − tổng đã quét, hiện thành một ô riêng để con số luôn khớp với ổ đĩa.

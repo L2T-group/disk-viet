@@ -1,6 +1,6 @@
 [package]
 name = "diskviet"
-version = "0.1.1"
+version = "0.1.2"
 description = "DiskViet — disk cleaner with a safety-colored treemap"
 license = "PolyForm-Noncommercial-1.0.0"
 edition = "2024"

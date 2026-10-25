@@ -56,7 +56,7 @@ test('delete: a running app is reported in plain language', async ({ page }) => 
   await page.getByRole('complementary').getByRole('button', { name: 'Xoá…' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Xoá', exact: true }).click();
   const alert = page.getByRole('dialog').getByRole('alert');
-  await expect(alert).toContainText('Hãy thoát Telegram trước rồi thử lại');
+  await expect(alert).toContainText('Đang được dùng bởi Telegram — hãy thoát app đó');
   await expect(page.getByRole('dialog')).toContainText('chưa thấy dung lượng trống thêm');
 });
 

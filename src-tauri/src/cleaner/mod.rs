@@ -8,12 +8,12 @@ use crate::disk;
 use crate::error::AppError;
 use crate::guard::{self, Checked, DeleteMode};
 use crate::history::{self, HistoryEntry};
-use crate::rules::{self, Cleaner, Rule};
+use crate::rules::{self, Cleaner, Rule, could_hold};
 use crate::scanner::Tree;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{PoisonError, RwLock};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +46,8 @@ pub type Elevate<'a> = dyn Fn(&[DeleteItem], &Path) -> Result<Vec<ItemResult>, A
 
 /// Runs a tool cleaner on its rule-matched folder (`tools::run_tool`; tests inject a fake).
 pub type ToolRun<'a> = dyn Fn(Cleaner, &Path) -> Result<(), String> + 'a;
+/// Every file other processes have open, as (command, path); see `files::open_files`.
+pub type OpenFiles<'a> = dyn Fn() -> Result<Vec<(String, PathBuf)>, String> + 'a;
 
 /// Guard rejections are reported by their reason code.
 fn reason(e: AppError) -> String {
@@ -58,15 +60,22 @@ fn reason(e: AppError) -> String {
 /// Deletes `items` in order. `tree` may hold no scan; it is locked only around lookups and
 /// removals, never across filesystem work. `running` answers "is this process running?".
 /// All 🔑 items go to `elevate` in one call, so macOS asks for the password once.
+// The last four are OS probes, passed in so tests can fake them.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     items: &[DeleteItem],
     tree: &RwLock<Option<Tree>>,
     home: &Path,
     history_dir: &Path,
     running: &dyn Fn(&str) -> bool,
+    open_files: &OpenFiles<'_>,
     elevate: &Elevate<'_>,
     tool: &ToolRun<'_>,
 ) -> DeleteReport {
+    // shortcut: one snapshot per batch; an app opened mid-batch is not seen, re-run lsof per
+    // item if long Trash batches make that matter.
+    let open = std::cell::OnceCell::new();
+    let open = || open.get_or_init(open_files);
     let expanded = empty_containers(items, home);
     let items: Vec<DeleteItem> = expanded.iter().map(|(it, _)| it.clone()).collect();
     let items = &items[..];
@@ -162,7 +171,7 @@ pub fn run(
                 finish(i, c.path.to_string_lossy().into_owned(), tool(cl, &c.path));
             }
             Ok(c) => {
-                let res = precheck(c, it.mode, &canon_home, running);
+                let res = precheck(c, it.mode, &canon_home, running, open());
                 if res.is_ok() && c.rule.is_some_and(|r| r.needs_admin) {
                     admin.push(i); // guard already refused Trash for these
                     continue;
@@ -291,6 +300,7 @@ fn precheck(
     mode: DeleteMode,
     home: &Path,
     running: &dyn Fn(&str) -> bool,
+    open: &Result<Vec<(String, PathBuf)>, String>,
 ) -> Result<(), String> {
     if mode == DeleteMode::Trash && !trash_on_volume(&c.path, home) {
         return Err("no_trash_on_volume".into());
@@ -306,15 +316,12 @@ fn precheck(
     if let Some(p) = procs.into_iter().find(|p| running(p)) {
         return Err(format!("quit:{p}"));
     }
+    // Any app with a file open inside (caches of apps no rule names) would break or crash.
+    let open = open.as_ref().map_err(Clone::clone)?;
+    if let Some((cmd, _)) = open.iter().find(|(_, f)| f.starts_with(&c.path)) {
+        return Err(format!("quit:{cmd}"));
+    }
     Ok(())
-}
-
-/// Could `pattern` match `item` or something inside it? True when `item` matches the
-/// pattern cut after any segment (`~/a/*.tg` for `~/a/*.tg/**/media`); a trailing `**`
-/// covers everything below.
-fn could_hold(pattern: &str, item: &Path, home: &Path) -> bool {
-    let segs: Vec<&str> = pattern.split('/').collect();
-    (1..=segs.len()).any(|k| rules::matches(&segs[..k].join("/"), item, home))
 }
 
 /// Trash only on the home volume or a volume with `/.Trashes`; elsewhere (SMB, exFAT) Finder
@@ -399,6 +406,10 @@ mod tests {
         panic!("unexpected elevation")
     }
 
+    fn no_open() -> Result<Vec<(String, PathBuf)>, String> {
+        Ok(vec![])
+    }
+
     fn no_tool(_: rules::Cleaner, _: &Path) -> Result<(), String> {
         panic!("unexpected tool run")
     }
@@ -426,6 +437,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -448,7 +460,7 @@ mod tests {
             item(&one, DeleteMode::Permanent),
             item(&two, DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &no_admin, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &no_admin, &no_tool);
         assert_eq!(errors(&r), [Some("not_found"), None]);
         assert!(!r.results[0].ok && r.results[1].ok);
         assert!(!two.exists());
@@ -465,7 +477,7 @@ mod tests {
             item(&a, DeleteMode::Permanent),
             item(&a, DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &no_admin, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &no_admin, &no_tool);
         let paths: Vec<_> = r.results.iter().map(|x| x.path.clone()).collect();
         let (a_s, b_s) = (a.to_string_lossy(), b.to_string_lossy());
         assert_eq!(paths, [b_s.clone(), a_s.clone(), a_s]);
@@ -479,39 +491,90 @@ mod tests {
     #[test]
     fn parent_dir_checks_processes_of_rules_inside() {
         let (h, hist, t) = setup("parent");
-        let caches = h.join("Library/Caches");
-        let tg = h.join("Library/Caches/ru.keepcoder.Telegram");
         let running = |n: &str| n == "Telegram";
-        // The Telegram child is dropped by dedupe; it reports the parent's failure.
-        let items = [
-            item(&caches, DeleteMode::Permanent),
+        let run1 = |items: &[DeleteItem]| {
+            run(
+                items, &t, &h, &hist, &running, &no_open, &no_admin, &no_tool,
+            )
+        };
+        // The Telegram media child is dropped by dedupe; it reports the parent's failure.
+        let tg = h.join("Library/Group Containers/6N38VWS5BX.ru.keepcoder.Telegram");
+        let media = tg.join("stable/postbox/media");
+        write(&media.join("m"), 10);
+        let r = run1(&[
             item(&tg, DeleteMode::Permanent),
-        ];
-        let r = run(&items, &t, &h, &hist, &running, &no_admin, &no_tool);
+            item(&media, DeleteMode::Permanent),
+        ]);
         assert_eq!(
             errors(&r),
             [
                 Some("quit:Telegram"),
-                Some(format!("covered_by:{}", caches.display()).as_str())
+                Some(format!("covered_by:{}", tg.display()).as_str())
             ]
         );
-        assert!(!r.results[1].ok);
-        assert!(tg.join("media").exists() && caches.join("com.fake.app/big").exists());
+        assert!(media.join("m").exists());
         assert_eq!(r.expected, 0);
-        // Group Containers holds a Telegram pattern below a glob segment.
+        // Folders holding System items (com.apple.* caches, Apple group containers) are refused
+        // by the guard; a child of them is still checked on its own.
+        let caches = h.join("Library/Caches");
+        let tg_cache = caches.join("ru.keepcoder.Telegram");
+        let r = run1(&[
+            item(&caches, DeleteMode::Permanent),
+            item(&tg_cache, DeleteMode::Permanent),
+        ]);
+        assert_eq!(errors(&r), [Some("holds_system"), Some("quit:Telegram")]);
+        assert!(tg_cache.join("media").exists() && caches.join("com.fake.app/big").exists());
         let gc = h.join("Library/Group Containers");
-        fs::create_dir_all(&gc).unwrap();
+        let r = run1(&[item(&gc, DeleteMode::Permanent)]);
+        assert_eq!(errors(&r), [Some("holds_system")]);
+        assert!(gc.exists());
+    }
+
+    #[test]
+    fn open_file_inside_blocks_item() {
+        let (h, hist, t) = setup("open");
+        let app = h.join("Library/Caches/com.fake.app");
+        let held = || Ok(vec![("Fake Helper".to_string(), app.join("big"))]);
         let r = run(
-            &[item(&gc, DeleteMode::Permanent)],
+            &[item(&app, DeleteMode::Permanent)],
             &t,
             &h,
             &hist,
-            &running,
+            &never,
+            &held,
             &no_admin,
             &no_tool,
         );
-        assert_eq!(errors(&r), [Some("quit:Telegram")]);
-        assert!(gc.exists());
+        assert_eq!(errors(&r), [Some("quit:Fake Helper")]);
+        // A sibling whose name only shares the prefix is not blocked (`starts_with` is per segment).
+        let other = h.join("Library/Caches/com.fake");
+        write(&other.join("x"), 10);
+        let near = || Ok(vec![("Fake".to_string(), app.join("big"))]);
+        let r = run(
+            &[item(&other, DeleteMode::Permanent)],
+            &t,
+            &h,
+            &hist,
+            &never,
+            &near,
+            &no_admin,
+            &no_tool,
+        );
+        assert_eq!(errors(&r), [None]);
+        // No answer from lsof: refuse rather than guess.
+        let unknown = || Err("in_use_unknown".to_string());
+        let r = run(
+            &[item(&app, DeleteMode::Permanent)],
+            &t,
+            &h,
+            &hist,
+            &never,
+            &unknown,
+            &no_admin,
+            &no_tool,
+        );
+        assert_eq!(errors(&r), [Some("in_use_unknown")]);
+        assert!(app.join("big").exists());
     }
 
     #[test]
@@ -528,6 +591,7 @@ mod tests {
                 &h,
                 &hist,
                 &running,
+                &no_open,
                 &no_admin,
                 &no_tool,
             );
@@ -543,6 +607,7 @@ mod tests {
             &h,
             &hist,
             &running,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -579,7 +644,7 @@ mod tests {
             item(&tr, DeleteMode::Permanent),
             item(&dl, DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &no_admin, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &no_admin, &no_tool);
         assert_eq!(errors(&r), [None, None, None]);
         let mut paths: Vec<_> = r.results.iter().map(|x| x.path.clone()).collect();
         paths.sort();
@@ -596,6 +661,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -630,6 +696,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -647,7 +714,7 @@ mod tests {
             item(&one, DeleteMode::Permanent),
             item(&ssh, DeleteMode::Permanent),
         ];
-        run(&items, &t, &h, &hist, &never, &no_admin, &no_tool);
+        run(&items, &t, &h, &hist, &never, &no_open, &no_admin, &no_tool);
         let l = history::list_from(&hist).unwrap();
         assert_eq!(l.len(), 2);
         assert_eq!(l[0].path, ssh.to_string_lossy()); // newest first
@@ -667,6 +734,7 @@ mod tests {
             &h,
             &hist,
             &tg,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -680,6 +748,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -699,7 +768,7 @@ mod tests {
             item(&raw, DeleteMode::Permanent),
             item(&h.join("junk/ln"), DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &no_admin, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &no_admin, &no_tool);
         assert_eq!(errors(&r), [None, None]);
         assert_eq!(r.results[0].path, h.join("junk/one").to_string_lossy());
         assert!(!h.join("junk/one").exists());
@@ -717,6 +786,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -771,7 +841,7 @@ mod tests {
             item(&one, DeleteMode::Permanent),
             item(&upd, DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &fake, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &fake, &no_tool);
         assert_eq!(errors(&r), [None, None, Some("boom")]);
         let s = |p: &PathBuf| p.to_string_lossy().into_owned();
         assert_eq!(*calls.borrow(), [(vec![s(&sim), s(&upd)], h.clone())]);
@@ -784,6 +854,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -795,6 +866,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -812,7 +884,7 @@ mod tests {
             item(&sim, DeleteMode::Permanent),
             item(&upd, DeleteMode::Permanent),
         ];
-        let r = run(&items, &t, &h, &hist, &never, &cancel, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &cancel, &no_tool);
         assert_eq!(
             errors(&r),
             [Some("admin_cancelled"), Some("admin_cancelled")]
@@ -824,11 +896,20 @@ mod tests {
                 .all(|e| !e.ok && e.error.as_deref() == Some("admin_cancelled"))
         );
         let fail = |_: &[DeleteItem], _: &Path| Err(AppError::Invalid("admin_failed: x".into()));
-        let r = run(&items[..1], &t, &h, &hist, &never, &fail, &no_tool);
+        let r = run(
+            &items[..1],
+            &t,
+            &h,
+            &hist,
+            &never,
+            &no_open,
+            &fail,
+            &no_tool,
+        );
         assert_eq!(errors(&r), [Some("admin_failed")]);
         // A short result list fails the missing items instead of guessing.
         let short = |_: &[DeleteItem], _: &Path| Ok(vec![]);
-        let r = run(&items, &t, &h, &hist, &never, &short, &no_tool);
+        let r = run(&items, &t, &h, &hist, &never, &no_open, &short, &no_tool);
         assert_eq!(errors(&r), [Some("admin_failed"), Some("admin_failed")]);
     }
 
@@ -848,6 +929,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &fake,
         );
@@ -871,6 +953,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &failing,
         );
@@ -893,6 +976,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &no_tool,
         );
@@ -911,6 +995,7 @@ mod tests {
             &h,
             &hist,
             &never,
+            &no_open,
             &no_admin,
             &missing,
         );

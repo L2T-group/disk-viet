@@ -103,6 +103,128 @@ fn table() {
             Some("simulator_caches"),
             Safety::Safe,
         ),
+        // Catch-alls lose to any more specific rule on the same node.
+        (
+            "~/Library/Caches/GeoServices",
+            Some("app_caches"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Caches/pip",
+            Some("python_pkg_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Caches/com.apple.helpd",
+            Some("apple_app_data"),
+            Safety::System,
+        ),
+        (
+            "~/Library/Caches/com.apple.dt.Xcode",
+            Some("app_caches"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Cursor/Code Cache",
+            Some("cursor_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Google/Chrome/Default/Code Cache",
+            Some("chrome_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Caches/com.apple.Safari",
+            Some("safari_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Binance/Code Cache",
+            Some("electron_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Cursor/Cache",
+            Some("cursor_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Binance",
+            Some("app_data"),
+            Safety::Important,
+        ),
+        (
+            "~/Library/Application Support/ZaloData",
+            Some("zalo_data"),
+            Safety::Caution,
+        ),
+        (
+            "~/Library/Application Support/MobileSync/Backup",
+            Some("iphone_backups"),
+            Safety::Important,
+        ),
+        (
+            "~/Library/Containers/com.apple.mediaanalysisd",
+            Some("apple_app_data"),
+            Safety::System,
+        ),
+        (
+            "~/Library/Containers/com.docker.docker",
+            Some("docker_data"),
+            Safety::Caution,
+        ),
+        (
+            "~/Library/Group Containers/74J34U3R6X.com.apple.iWork",
+            Some("apple_app_data"),
+            Safety::System,
+        ),
+        (
+            "~/Library/Group Containers/6N38VWS5BX.ru.keepcoder.Telegram",
+            Some("telegram_data"),
+            Safety::Caution,
+        ),
+        (
+            "~/Library/Application Support/Google/Chrome",
+            Some("chrome_profile"),
+            Safety::Important,
+        ),
+        (
+            "~/Library/Application Support/Google/Chrome/Default/IndexedDB",
+            Some("chrome_site_data"),
+            Safety::Caution,
+        ),
+        (
+            "~/Library/Application Support/Google/Chrome/Default/Service Worker/CacheStorage",
+            Some("chrome_cache"),
+            Safety::Safe,
+        ),
+        (
+            "~/Library/Application Support/Cursor/snapshots",
+            Some("cursor_data"),
+            Safety::Caution,
+        ),
+        (
+            "~/Library/Application Support/Cursor/User/globalStorage",
+            Some("cursor_global_storage"),
+            Safety::Caution,
+        ),
+        (
+            "~/.vscode/extensions",
+            Some("editor_extensions"),
+            Safety::Caution,
+        ),
+        ("/opt/homebrew/Cellar", Some("dev_tools"), Safety::System),
+        (
+            "~/Library/Application Support/CloudDocs",
+            Some("apple_app_data"),
+            Safety::System,
+        ),
+        (
+            "~/Library/Mobile Documents/com~apple~CloudDocs",
+            Some("apple_app_data"),
+            Safety::System,
+        ),
     ];
     for (p, id, safety) in cases {
         let path = match p.strip_prefix('~') {

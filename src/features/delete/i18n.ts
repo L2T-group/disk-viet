@@ -32,6 +32,10 @@ export const dict = {
     'delete.err.mount_root': 'Đây là gốc của một ổ đĩa, không xoá được.',
     'delete.err.system_path': 'Nằm trong vùng hệ thống macOS, không được xoá.',
     'delete.err.system_safety': 'Mục hệ thống, không được xoá.',
+    'delete.err.holds_system':
+      'Bên trong có mục hệ thống nên không xoá cả thư mục được — hãy chọn từng mục bên trong.',
+    'delete.err.in_use_unknown':
+      'Không kiểm tra được app nào đang dùng các file này nên chưa xoá. Hãy thử lại.',
     'delete.err.needs_ack': 'Cần tick "Tôi hiểu dữ liệu này không thể khôi phục" rồi thử lại.',
     'delete.err.admin_trash': 'Mục cần quyền quản trị không vào Thùng rác được — chọn Xoá hẳn.',
     'delete.err.trash_permanent_only': 'Mục đã ở trong Thùng rác — chọn Xoá hẳn.',
@@ -41,7 +45,7 @@ export const dict = {
     'delete.err.not_found': 'Không còn tồn tại — có thể đã bị xoá. Hãy quét lại.',
     'delete.err.relative': 'Đường dẫn không hợp lệ (không phải đường dẫn đầy đủ).',
     'delete.err.no_home': 'Không xác định được thư mục người dùng.',
-    'delete.err.quit': 'Hãy thoát {app} trước rồi thử lại.',
+    'delete.err.quit': 'Đang được dùng bởi {app} — hãy thoát app đó (hoặc đóng chương trình đang dùng mục này) rồi thử lại.',
     'delete.err.needs_admin': 'Cần quyền quản trị — hãy chọn Xoá hẳn, macOS sẽ hỏi mật khẩu.',
     'delete.err.admin_cancelled': 'Bạn đã huỷ nhập mật khẩu — chưa xoá gì.',
     'delete.err.admin_failed':
@@ -94,6 +98,10 @@ export const dict = {
     'delete.err.mount_root': 'This is the root of a disk and cannot be deleted.',
     'delete.err.system_path': 'Inside a macOS system area; not allowed.',
     'delete.err.system_safety': 'System item; not allowed.',
+    'delete.err.holds_system':
+      'It holds system items, so the whole folder cannot be deleted — choose the items inside instead.',
+    'delete.err.in_use_unknown':
+      'Could not check which apps are using these files, so nothing was deleted. Try again.',
     'delete.err.needs_ack': 'Tick "I understand this data cannot be recovered" and try again.',
     'delete.err.admin_trash':
       'Items needing administrator rights cannot go to the Trash — choose Delete permanently.',
@@ -104,7 +112,7 @@ export const dict = {
     'delete.err.not_found': 'No longer exists — it may already be gone. Rescan.',
     'delete.err.relative': 'Invalid path (not a full path).',
     'delete.err.no_home': 'Could not find your home folder.',
-    'delete.err.quit': 'Quit {app} first, then try again.',
+    'delete.err.quit': 'In use by {app} — quit that app (or close whatever is using this item), then try again.',
     'delete.err.needs_admin':
       'Needs administrator rights — choose Delete permanently and macOS will ask for your password.',
     'delete.err.admin_cancelled': 'You cancelled the password prompt — nothing was deleted.',

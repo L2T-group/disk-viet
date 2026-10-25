@@ -66,7 +66,15 @@ pub static RULES: &[Rule] = &[
         &["Telegram"],
     ),
     quit(
-        r("chrome_cache", &["~/Library/Caches/Google"], Safe),
+        r(
+            "chrome_cache",
+            &[
+                "~/Library/Caches/Google",
+                "~/Library/Application Support/Google/Chrome/*/{Code Cache,GPUCache}",
+                "~/Library/Application Support/Google/Chrome/*/Service Worker/{CacheStorage,ScriptCache}",
+            ],
+            Safe,
+        ),
         &["Google Chrome"],
     ),
     quit(
@@ -90,7 +98,7 @@ pub static RULES: &[Rule] = &[
         r(
             "cursor_cache",
             &[
-                "~/Library/Application Support/Cursor/{Cache,CachedData,CachedExtensionVSIXs,GPUCache}",
+                "~/Library/Application Support/Cursor/{Cache,Code Cache,CachedData,CachedExtensionVSIXs,GPUCache}",
             ],
             Safe,
         ),
@@ -100,7 +108,7 @@ pub static RULES: &[Rule] = &[
         r(
             "vscode_cache",
             &[
-                "~/Library/Application Support/Code/{Cache,CachedData,CachedExtensionVSIXs,GPUCache}",
+                "~/Library/Application Support/Code/{Cache,Code Cache,CachedData,CachedExtensionVSIXs,GPUCache}",
             ],
             Safe,
         ),
@@ -127,6 +135,22 @@ pub static RULES: &[Rule] = &[
     ),
     r("cocoapods_cache", &["~/Library/Caches/CocoaPods"], Safe),
     r("logs", &["~/Library/Logs/*"], Safe),
+    // Catch-alls: any more specific rule on the same node wins (`specificity`).
+    r(
+        "app_caches",
+        &[
+            "~/Library/Caches/*",
+            "~/Library/Application Support/Caches",
+            // Xcode / Instruments caches: outrank `apple_app_data`'s `com.apple.*`.
+            "~/Library/Caches/com.apple.dt.*",
+        ],
+        Safe,
+    ),
+    r(
+        "electron_cache",
+        &["~/Library/Application Support/*/{Cache,Code Cache,GPUCache,CachedData}"],
+        Safe,
+    ),
     // 🟡 Caution
     // Not 🔑: simctl removes the image itself, run as the user. Only the image (`.dmg`) or its
     // `.asset` dir is a target: the mounted `CoreSimulator/Volumes/*` are mount roots, which
@@ -159,7 +183,9 @@ pub static RULES: &[Rule] = &[
     r("android_avd", &["~/.android/avd/*.avd"], Caution),
     r(
         "android_sdk",
-        &["~/Library/Android/sdk/{system-images,ndk,build-tools,platforms,sources,emulator}"],
+        &[
+            "~/Library/Android/sdk/{system-images,ndk,build-tools,platforms,sources,emulator,cmdline-tools,cmake}",
+        ],
         Caution,
     ),
     r("dart_cache", &["~/.pub-cache", "~/.dartServer"], Caution),
@@ -178,6 +204,37 @@ pub static RULES: &[Rule] = &[
             Caution,
         ),
         &["Cursor"],
+    ),
+    quit(
+        r(
+            "cursor_data",
+            &["~/Library/Application Support/Cursor/{snapshots,WebStorage}"],
+            Caution,
+        ),
+        &["Cursor"],
+    ),
+    quit(
+        r(
+            "vscode_data",
+            &["~/Library/Application Support/Code/WebStorage"],
+            Caution,
+        ),
+        &["Code"],
+    ),
+    r(
+        "editor_extensions",
+        &["~/{.cursor,.vscode}/extensions"],
+        Caution,
+    ),
+    quit(
+        r(
+            "chrome_site_data",
+            &[
+                "~/Library/Application Support/Google/Chrome/*/{File System,IndexedDB,Service Worker}",
+            ],
+            Caution,
+        ),
+        &["Google Chrome"],
     ),
     tool(
         r(
@@ -223,6 +280,20 @@ pub static RULES: &[Rule] = &[
         Important,
     ),
     r("mail_messages", &["~/Library/{Mail,Messages}"], Important),
+    quit(
+        r(
+            "chrome_profile",
+            &["~/Library/Application Support/Google/Chrome"],
+            Important,
+        ),
+        &["Google Chrome"],
+    ),
+    // Catch-all for per-app data the catalog doesn't name.
+    r(
+        "app_data",
+        &["~/Library/{Application Support,Containers,Group Containers}/*"],
+        Important,
+    ),
     // Matched by `has_git`, not by pattern (see `classify`).
     r("git_projects", &[], Important),
     r(
@@ -247,6 +318,27 @@ pub static RULES: &[Rule] = &[
     // SIP `restricted`: even root gets EPERM; macOS manages these itself.
     r("macos_updates", &["/Library/Updates"], System),
     r("applications", &["/Applications"], System),
+    r(
+        "dev_tools",
+        &["/opt/homebrew", "/Library/Developer/CommandLineTools"],
+        System,
+    ),
+    // Literal prefixes, not a `{..}` group: brace chars don't count toward `specificity`, and
+    // these must outrank the `app_data` / `app_caches` catch-alls on the same node.
+    r(
+        "apple_app_data",
+        &[
+            "~/Library/Containers/com.apple.*",
+            "~/Library/Group Containers/group.com.apple.*",
+            "~/Library/Group Containers/*.com.apple.*",
+            "~/Library/Caches/com.apple.*",
+            // iCloud Drive: deleting here deletes in iCloud too.
+            "~/Library/Mobile Documents",
+            "~/Library/Application Support/CloudDocs",
+            "~/Library/Application Support/FileProvider",
+        ],
+        System,
+    ),
     r("keychains", &["~/Library/Keychains"], System),
     r("ssh_gpg", &["~/.ssh", "~/.gnupg"], System),
     r("preferences", &["~/Library/Preferences"], System),
